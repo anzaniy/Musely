@@ -23,7 +23,7 @@ Offset disimpan di `localStorage` sehingga tetap berlaku setelah aplikasi ditutu
 
 ## Mode ringkas (hover)
 
-Saat kursor tidak berada di atas widget, kartu/header/tombol disembunyikan dan hanya teks lirik dengan outline gelap yang tampil — tetap terbaca di atas aplikasi lain. Arahkan kursor ke widget untuk memunculkan tampilan penuh lagi (kartu, kontrol, progress).
+Saat kursor tidak berada di atas widget, kartu/header/tombol disembunyikan dan hanya teks lirik dengan outline gelap yang tampil tetap terbaca di atas aplikasi lain. Arahkan kursor ke widget untuk memunculkan tampilan penuh lagi (kartu, kontrol, progress).
 
 - Mode ringkas hanya aktif bila ada lirik yang sedang ditampilkan. Saat idle, iklan, instrumental, atau "tidak tersedia", widget tetap tampil penuh.
 - Tidak ada perubahan ukuran window, supaya tidak berkedip. Catatan: area transparan tetap menangkap klik (belum click-through) karena hover membutuhkan event mouse.
