@@ -1,0 +1,392 @@
+/* ---------------------------------------------------------------
+ * Widget lirik — latar transparan, kartu gelap semi-transparan.
+ * --------------------------------------------------------------- */
+
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent; /* wajib untuk window transparan */
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+}
+
+.widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 12px 14px 0;
+  border-radius: 16px;
+  overflow: hidden;
+
+  background: #0c0c0e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------------- header ---------------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: grab;
+  flex: 0 0 auto;
+}
+
+.top:active {
+  cursor: grabbing;
+}
+
+.cover {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1db954 0%, #0d5c2a 55%, #101012 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  background-size: cover;
+  background-position: center;
+}
+
+.meta {
+  min-width: 0;
+  flex: 1 1 auto;
+  line-height: 1.22;
+}
+
+.title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---------------- lirik ---------------- */
+
+.lyrics {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-height: 0;
+  text-align: center;
+  padding-bottom: 2px;
+}
+
+.line {
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 180ms ease, transform 180ms ease, color 180ms ease;
+}
+
+.line.prev,
+.line.next {
+  font-size: 11.5px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.line.active {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  text-shadow: 0 0 18px rgba(29, 185, 84, 0.18);
+  padding: 0 2px;
+  line-height: 1.24;
+  white-space: normal;
+  text-overflow: clip;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.line.active.msg {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  text-shadow: none;
+  display: block;
+  -webkit-line-clamp: 1;
+}
+
+/* ---------------- kontrol ---------------- */
+
+.controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+button {
+  font-family: inherit;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+button:active {
+  transform: scale(0.92);
+}
+
+button svg {
+  width: 15px;
+  height: 15px;
+  fill: currentColor;
+  display: block;
+}
+
+.icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+}
+
+.icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.icon.primary {
+  width: 29px;
+  height: 29px;
+  border-radius: 999px;
+  background: rgba(29, 185, 84, 0.16);
+  color: #4ade80;
+}
+
+.icon.primary:hover {
+  background: rgba(29, 185, 84, 0.28);
+  color: #7bf0a5;
+}
+
+.icon.primary svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ico-pause {
+  display: none;
+}
+
+#btn-play.is-playing .ico-play {
+  display: none;
+}
+
+#btn-play.is-playing .ico-pause {
+  display: block;
+}
+
+.icon.close {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.icon.close:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ff8a8a;
+}
+
+.icon.close svg {
+  width: 13px;
+  height: 13px;
+}
+
+.offset {
+  gap: 1px;
+}
+
+.mini {
+  width: 19px;
+  height: 19px;
+  border-radius: 5px;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.mini:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.offset-value {
+  min-width: 44px;
+  height: 19px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.offset-value:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.offset-value.bump {
+  animation: bump 260ms ease;
+}
+
+@keyframes bump {
+  0% {
+    background: rgba(29, 185, 84, 0.32);
+    color: #ffffff;
+  }
+  100% {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.42);
+  }
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  transform: none;
+}
+
+/* ---------------- progress ---------------- */
+
+.progress {
+  flex: 0 0 auto;
+  height: 2px;
+  margin: 0 -14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #1db954, #4ade80);
+  transition: width 80ms linear;
+}
+
+/* ---------------- mode ringkas (kursor jauh) ----------------
+ * Kartu, header, kontrol, dan progress disembunyikan. Yang tersisa hanya
+ * teks lirik dengan outline gelap supaya tetap terbaca di atas apa pun.
+ * ---------------------------------------------------------- */
+
+.widget {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.top,
+.controls,
+.progress {
+  transition: opacity 180ms ease;
+}
+
+.widget.compact {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.widget.compact .top,
+.widget.compact .controls,
+.widget.compact .progress {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.widget.compact .lyrics {
+  padding-bottom: 0;
+}
+
+.widget.compact .line {
+  -webkit-text-stroke: 4px rgba(0, 0, 0, 0.62);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.85);
+}
+
+.widget.compact .line.prev,
+.widget.compact .line.next {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  -webkit-text-stroke-width: 3.5px;
+}
+
+.widget.compact .line.active {
+  font-size: 19.5px;
+  color: #ffffff;
+}
+
+.widget.compact .line.active.msg {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+/* Aksesibilitas: kurangi animasi jika diminta sistem */
+@media (prefers-reduced-motion: reduce) {
+  .line,
+  .progress-fill,
+  .offset-value.bump {
+    transition: none;
+    animation: none;
+  }
+}

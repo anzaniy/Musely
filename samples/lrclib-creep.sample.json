@@ -1,0 +1,14 @@
+{
+  "_note": "Respons asli dari GET https://lrclib.net/api/get (Oktober 2026). Teks lirik dipotong untuk menghemat ukuran file; struktur field tidak diubah.",
+  "id": 496,
+  "name": "Creep",
+  "trackName": "Creep",
+  "artistName": "Radiohead",
+  "albumName": "Pablo Honey",
+  "duration": 239.0,
+  "instrumental": false,
+  "hasWordSync": false,
+  "plainLyrics": "When you were here before\nCouldn't look you in the eye\nYou're just like an angel\nYour skin makes me cry\n[... dipotong ...]\nI don't belong here\nI don't belong here\n",
+  "syncedLyrics": "[00:19.16]When you were here before\n[00:24.09]Couldn't look you in the eye\n[00:29.24]You're just like an angel\n[00:34.49]Your skin makes me cry\n[... dipotong ...]\n[03:47.39]I don't belong here\n[03:50.78]",
+  "lyricsfile": "version: '1.0'\nmetadata:\n  title: Creep\n  artist: Radiohead\n  album: Pablo Honey\n  duration_ms: 239000\n  instrumental: false\nlines:\n- text: When you were here before\n  start_ms: 19160\n  end_ms: 24090\n- text: Couldn't look you in the eye\n  start_ms: 24090\n  end_ms: 29240\n- text: You're just like an angel\n  start_ms: 29240\n  end_ms: 34490\n- text: Your skin makes me cry\n  start_ms: 34490\n  end_ms: 39770\n[... baris dipotong ...]\n- text: I don't belong here\n  start_ms: 227390\n  end_ms: 230780\n- text: ''\n  start_ms: 230780\n"
+}
