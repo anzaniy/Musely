@@ -68,8 +68,6 @@ musely/
 
 ## Prasyarat
 
-Sudah terpasang di mesin ini:
-
 ```text
 Node.js        v24.13.1   OK
 npm            11.8.0     OK
