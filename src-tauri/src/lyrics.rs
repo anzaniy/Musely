@@ -131,37 +131,49 @@ fn build_client() -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
+enum Lookup {
+    Found(reqwest::Response),
+    /// LRCLIB menjawab bahwa lagunya memang tidak ada (404/400).
+    Empty,
+    /// Gangguan sementara (429/5xx). Jangan dianggap "tidak ada".
+    Transient,
+}
+
+fn is_transient(status: reqwest::StatusCode) -> bool {
+    status.is_server_error() || status.as_u16() == 429
+}
+
 /// Kirim request dengan satu percobaan ulang untuk error jaringan atau 5xx.
-/// LRCLIB cukup sering membalas 503 sesaat.
+/// LRCLIB cukup sering membalas 503/429 sesaat.
 async fn send_with_retry(
     client: &reqwest::Client,
     url: &str,
     params: &[(&str, String)],
-) -> Result<Option<reqwest::Response>, reqwest::Error> {
+) -> Result<Lookup, reqwest::Error> {
     let mut last_error: Option<reqwest::Error> = None;
 
     for attempt in 0..2u32 {
         match client.get(url).query(params).send().await {
-            Ok(resp) if resp.status().is_success() => return Ok(Some(resp)),
+            Ok(resp) if resp.status().is_success() => return Ok(Lookup::Found(resp)),
             Ok(resp) => {
-                if resp.status().is_server_error() && attempt == 0 {
-                    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
-                    continue;
+                if !is_transient(resp.status()) {
+                    return Ok(Lookup::Empty);
                 }
-                return Ok(None);
+                if attempt == 1 {
+                    return Ok(Lookup::Transient);
+                }
             }
             Err(error) => {
-                if attempt == 0 {
-                    last_error = Some(error);
-                    tokio::time::sleep(std::time::Duration::from_millis(700)).await;
-                    continue;
+                last_error = Some(error);
+                if attempt == 1 {
+                    break;
                 }
-                return Err(error);
             }
         }
+        tokio::time::sleep(std::time::Duration::from_millis(1_000)).await;
     }
 
-    Err(last_error.expect("percobaan pertama selalu menyimpan error"))
+    Err(last_error.expect("percobaan kedua selalu menyimpan error"))
 }
 
 pub async fn fetch(track: &TrackInfo) -> LyricsState {
@@ -200,7 +212,7 @@ pub async fn fetch(track: &TrackInfo) -> LyricsState {
     let mut exact: Option<Record> = None;
 
     match send_with_retry(&client, &format!("{BASE_URL}/api/get"), &params).await {
-        Ok(Some(resp)) => {
+        Ok(Lookup::Found(resp)) => {
             if let Ok(record) = resp.json::<Record>().await {
                 if record.synced_lyrics.is_some() {
                     eprintln!("[lyrics] exact hit id={} (synced)", record.id);
@@ -213,8 +225,11 @@ pub async fn fetch(track: &TrackInfo) -> LyricsState {
                 exact = Some(record);
             }
         }
-        Ok(None) => {
+        Ok(Lookup::Empty) => {
             eprintln!("[lyrics] /api/get tidak ada hasil");
+        }
+        Ok(Lookup::Transient) => {
+            eprintln!("[lyrics] /api/get gangguan sementara, coba search");
         }
         Err(e) => {
             eprintln!("[lyrics] /api/get error: {e}");
@@ -226,7 +241,7 @@ pub async fn fetch(track: &TrackInfo) -> LyricsState {
     let search_params: Vec<(&str, String)> = vec![("q", query.clone())];
 
     match send_with_retry(&client, &format!("{BASE_URL}/api/search"), &search_params).await {
-        Ok(Some(resp)) => {
+        Ok(Lookup::Found(resp)) => {
             if let Ok(records) = resp.json::<Vec<Record>>().await {
                 eprintln!("[lyrics] search \"{}\" -> {} hasil", query, records.len());
                 if let Some(best) = pick_best(records, track.duration_ms) {
@@ -245,11 +260,20 @@ pub async fn fetch(track: &TrackInfo) -> LyricsState {
                 None => LyricsState::NotFound,
             }
         }
-        Ok(None) => {
+        Ok(Lookup::Empty) => {
             eprintln!("[lyrics] /api/search tidak ada hasil");
             match exact {
                 Some(record) => to_state(track, record),
                 None => LyricsState::NotFound,
+            }
+        }
+        Ok(Lookup::Transient) => {
+            eprintln!("[lyrics] /api/search gangguan sementara");
+            match exact {
+                Some(record) => to_state(track, record),
+                None => LyricsState::Error {
+                    message: "LRCLIB sedang sibuk, coba lagi".into(),
+                },
             }
         }
         Err(e) => {
@@ -390,19 +414,24 @@ fn parse_lrc(input: &str) -> Vec<LyricsLine> {
             continue;
         };
 
-        let text = line[close + 1..].trim().to_string();
+        let text = line[close + 1..].trim();
 
-        // buang timestamp tambahan di awal teks (multi-timestamp)
-        let mut rest = text.as_str();
+        // Satu baris boleh punya beberapa timestamp: [00:10.00][01:20.00] reff
+        let mut stamps = vec![ms];
+        let mut rest = text;
         while let Some(stripped) = rest.strip_prefix('[') {
             let Some(end) = stripped.find(']') else { break };
-            if parse_timestamp(&stripped[..end]).is_none() {
+            let Some(extra) = parse_timestamp(&stripped[..end]) else {
                 break;
-            }
+            };
+            stamps.push(extra);
             rest = stripped[end + 1..].trim_start();
         }
 
-        raw.push((ms, rest.to_string()));
+        let text = rest.to_string();
+        for stamp_ms in stamps {
+            raw.push((stamp_ms, text.clone()));
+        }
     }
 
     raw.sort_by_key(|(ms, _)| *ms);
@@ -549,6 +578,25 @@ mod tests {
             source: "gsmtc".into(),
         };
         assert!(!is_ad(&song));
+    }
+
+    #[test]
+    fn expands_multi_timestamp_lines() {
+        let lrc = "[00:10.00][01:20.00]chorus\n[00:30.00]verse";
+        let lines = parse_lrc(lrc);
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0].start_ms, 10_000);
+        assert_eq!(lines[1].start_ms, 30_000);
+        assert_eq!(lines[2].start_ms, 80_000);
+        assert_eq!(lines[2].text, "chorus");
+    }
+
+    #[test]
+    fn treats_429_and_5xx_as_transient() {
+        assert!(is_transient(reqwest::StatusCode::TOO_MANY_REQUESTS));
+        assert!(is_transient(reqwest::StatusCode::SERVICE_UNAVAILABLE));
+        assert!(!is_transient(reqwest::StatusCode::NOT_FOUND));
+        assert!(!is_transient(reqwest::StatusCode::BAD_REQUEST));
     }
 
     #[test]

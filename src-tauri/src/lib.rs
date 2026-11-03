@@ -62,6 +62,14 @@ fn toggle_window(app: &AppHandle) {
     }
 }
 
+/// Hasil fetch hanya boleh dipakai kalau lagunya masih yang diputar.
+fn is_still_current(current: &Mutex<Option<String>>, key: &Option<String>) -> bool {
+    current
+        .lock()
+        .map(|c| c.as_ref() == key.as_ref())
+        .unwrap_or(false)
+}
+
 /// Polling GSMTC + pengambilan lirik saat lagu berganti.
 fn start_playback_watcher(app: AppHandle) {
     std::thread::spawn(move || {
@@ -74,6 +82,9 @@ fn start_playback_watcher(app: AppHandle) {
         // menampilkan "Memuat lirik…" lagi.
         let cache: Arc<Mutex<HashMap<String, lyrics::LyricsState>>> =
             Arc::new(Mutex::new(HashMap::new()));
+        // Lagu yang sedang diputar. Hasil fetch lagu lama tidak boleh menimpa
+        // lirik lagu baru setelah pengguna skip.
+        let current_key: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 
         loop {
             // Abaikan snapshot tanpa track: bisa jadi gangguan sesaat saat
@@ -93,6 +104,9 @@ fn start_playback_watcher(app: AppHandle) {
 
                     if key != last_key {
                         last_key = key.clone();
+                        if let Ok(mut current) = current_key.lock() {
+                            *current = key.clone();
+                        }
 
                         if let Some(track) = snapshot.track.clone() {
                             if lyrics::is_ad(&track) {
@@ -113,9 +127,27 @@ fn start_playback_watcher(app: AppHandle) {
                                     let handle = app.clone();
                                     let cache_key = key.clone();
                                     let cache_ref = Arc::clone(&cache);
+                                    let current_ref = Arc::clone(&current_key);
                                     tauri::async_runtime::spawn(async move {
-                                        let state = lyrics::fetch(&track).await;
-                                        let _ = handle.emit("lyrics:update", state.clone());
+                                        let mut state = lyrics::fetch(&track).await;
+
+                                        // Error bisa berarti jaringan/LRCLIB sedang
+                                        // gangguan: coba lagi sebelum menyerah.
+                                        let mut retries = 0;
+                                        while matches!(&state, lyrics::LyricsState::Error { .. })
+                                            && retries < 2
+                                        {
+                                            retries += 1;
+                                            tokio::time::sleep(Duration::from_secs(2)).await;
+                                            if !is_still_current(&current_ref, &cache_key) {
+                                                break;
+                                            }
+                                            state = lyrics::fetch(&track).await;
+                                        }
+
+                                        if is_still_current(&current_ref, &cache_key) {
+                                            let _ = handle.emit("lyrics:update", state.clone());
+                                        }
 
                                         // Simpan hanya hasil final, bukan error/timeout.
                                         let cacheable = matches!(
@@ -147,6 +179,9 @@ fn start_playback_watcher(app: AppHandle) {
                     if should_emit {
                         idle_announced = true;
                         last_key = None;
+                        if let Ok(mut current) = current_key.lock() {
+                            *current = None;
+                        }
                         let _ = app.emit("playback:update", playback::PlaybackSnapshot::idle());
                         let _ = app.emit("lyrics:update", lyrics::LyricsState::Idle);
                     }
@@ -258,4 +293,19 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ignores_result_for_old_track() {
+        let current = Mutex::new(Some("B".to_string()));
+        assert!(!is_still_current(&current, &Some("A".to_string())));
+        assert!(is_still_current(&current, &Some("B".to_string())));
+
+        *current.lock().unwrap() = None;
+        assert!(!is_still_current(&current, &Some("B".to_string())));
+    }
 }
