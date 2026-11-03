@@ -86,7 +86,6 @@ let anchorPosition = 0;
 let anchorTime = performance.now();
 let playing = false;
 let lastActiveAt = 0;
-/** Posisi dari snapshot sebelumnya, untuk mendeteksi posisi yang beku. */
 let lastSnapshotPosition = -1;
 
 let offsetMs = loadOffset();
@@ -282,33 +281,23 @@ function onPlayback(snapshot: PlaybackSnapshot) {
   lastSnapshotPosition = position;
 
   if (trackChanged || nextPlaying !== playing) {
-    // Lagu baru atau status berubah: posisi snapshot adalah acuan terbaik.
     anchorPosition = position;
     anchorTime = now;
     playing = nextPlaying;
   } else if (!nextPlaying) {
     anchorPosition = position;
     anchorTime = now;
-  } else if (position === previousPosition) {
-    // Sebagian sumber (mis. YouTube di browser) hanya memperbarui posisi saat
-    // play/pause/seek. Kalau posisi beku tetap dipakai sebagai acuan, baris
-    // lirik akan ditarik mundur terus dan tidak pernah berganti. Biarkan jam
-    // lokal berjalan sampai snapshot benar-benar bergerak.
-  } else {
+  } else if (position !== previousPosition) {
     const estimate = anchorPosition + (now - anchorTime);
     const drift = position - estimate;
 
     if (position < previousPosition - 1_200) {
-      // Seek mundur yang nyata.
       anchorPosition = position;
       anchorTime = now;
     } else if (drift > 900) {
-      // Sumber lebih maju (seek maju atau jam lokal tertinggal): ikuti.
       anchorPosition = position;
       anchorTime = now;
     } else if (drift < -900) {
-      // Sumber tertinggal, bukan seek: koreksi pelan supaya baris tidak
-      // melompat mundur.
       anchorPosition = estimate + drift * 0.15;
       anchorTime = now;
     } else {
@@ -534,9 +523,6 @@ function loop() {
 
 function startRenderLoop() {
   requestAnimationFrame(loop);
-  // WebView2 bisa berhenti memanggil requestAnimationFrame saat jendela tidak
-  // fokus/tertutup. Timer ini menjaga baris lirik tetap berganti dan sekaligus
-  // memicu repaint ketika teks berubah.
   window.setInterval(tick, 200);
 }
 
