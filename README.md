@@ -30,21 +30,6 @@ Saat kursor tidak berada di atas widget, kartu/header/tombol disembunyikan dan h
 
 > Di Windows 11 ikon tray baru sering disembunyikan di panel `^`. Buka panel itu, lalu drag ikon *Musely* ke taskbar agar selalu terlihat.
 
----
-
-## Ringkasan keputusan
-
-| Aspek | Keputusan | Alasan |
-|---|---|---|
-| Platform | Windows 10/11 | Target utama pengguna |
-| Shell desktop | Tauri v2 (Rust + WebView2) | Binary kecil (~10 MB), RAM hemat, UI fleksibel |
-| Frontend | HTML/CSS/JS (vanilla atau React) | Widget sederhana, tidak butuh framework berat |
-| Sumber lagu | GSMTC (utama) + Spotify Web API (opsional) | GSMTC real-time & tanpa OAuth; Spotify API untuk metadata lengkap |
-| Sumber lirik | LRCLIB | Gratis, tanpa API key, ada lirik tersinkron |
-| Distribusi | Lokal / build sendiri | Menghindari risiko komersial (lihat `docs/06`) |
-
----
-
 ## Struktur folder
 
 ```text
@@ -76,24 +61,17 @@ Cargo          1.99.1     OK
 MSVC Build Tools 2022     OK
 WebView2 Runtime          OK (bawaan Windows 11)
 ```
-
-Kalau menyiapkan mesin baru:
-
-1. **rustup** → https://rustup.rs (toolchain `stable-x86_64-pc-windows-msvc`)
-2. **Visual Studio Build Tools** dengan workload *Desktop development with C++*
-3. **WebView2 Runtime** (umumnya sudah ada di Windows 11)
-
 ---
 
-## Menjalankan
+## Run
 
-```powershell
+```via powershell
 npm install
 npm run tauri dev      # mode pengembangan
 npm run tauri build    # installer NSIS di src-tauri/target/release/bundle/
 ```
 
-Catatan: perintah `cargo` harus ada di `PATH` (`$env:USERPROFILE\.cargo\bin`).
+Catatan: command `cargo` harus ada di `PATH` (`$env:USERPROFILE\.cargo\bin`).
 
 ---
 
