@@ -108,10 +108,3 @@ Catatan: perintah `cargo` harus ada di `PATH` (`$env:USERPROFILE\.cargo\bin`).
 5. Idle baru diumumkan setelah 3 kegagalan baca berturut-turut (±1,5 dtk) untuk mencegah kedip.
 
 ---
-
-## Belum dikerjakan
-
-- Cache lirik persisten di disk (saat ini hanya in-memory)
-- Hotkey global show/hide
-- Thumbnail album dari GSMTC
-- Uji installer di mesin bersih
