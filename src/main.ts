@@ -86,6 +86,8 @@ let anchorPosition = 0;
 let anchorTime = performance.now();
 let playing = false;
 let lastActiveAt = 0;
+/** Posisi dari snapshot sebelumnya, untuk mendeteksi posisi yang beku. */
+let lastSnapshotPosition = -1;
 
 let offsetMs = loadOffset();
 let lastIndex = -2;
@@ -272,28 +274,47 @@ function showIdle() {
 function onPlayback(snapshot: PlaybackSnapshot) {
   const now = performance.now();
   const nextPlaying = snapshot.status === "playing";
+  const next = snapshot.track;
+  const nextKey = next ? trackKeyOf(next) : null;
+  const trackChanged = nextKey !== null && nextKey !== trackKey;
+  const position = snapshot.positionMs;
+  const previousPosition = lastSnapshotPosition;
+  lastSnapshotPosition = position;
 
-  if (nextPlaying === playing) {
-    // Hitung perkiraan posisi sebelum snapshot, lalu koreksi drift secara
-    // bertahap. Snap langsung tiap 500 ms membuat posisi bisa "mundur"
-    // sedikit dan baris lirik berkedip di batas waktu.
-    const estimate = anchorPosition + (playing ? now - anchorTime : 0);
-    const drift = snapshot.positionMs - estimate;
-
-    if (Math.abs(drift) > 900) {
-      // Seek besar / lagu baru: ikuti langsung.
-      anchorPosition = snapshot.positionMs;
-      anchorTime = now;
-    } else if (playing) {
-      anchorPosition += drift * 0.25;
-    } else {
-      anchorPosition = snapshot.positionMs;
-      anchorTime = now;
-    }
-  } else {
-    anchorPosition = snapshot.positionMs;
+  if (trackChanged || nextPlaying !== playing) {
+    // Lagu baru atau status berubah: posisi snapshot adalah acuan terbaik.
+    anchorPosition = position;
     anchorTime = now;
     playing = nextPlaying;
+  } else if (!nextPlaying) {
+    anchorPosition = position;
+    anchorTime = now;
+  } else if (position === previousPosition) {
+    // Sebagian sumber (mis. YouTube di browser) hanya memperbarui posisi saat
+    // play/pause/seek. Kalau posisi beku tetap dipakai sebagai acuan, baris
+    // lirik akan ditarik mundur terus dan tidak pernah berganti. Biarkan jam
+    // lokal berjalan sampai snapshot benar-benar bergerak.
+  } else {
+    const estimate = anchorPosition + (now - anchorTime);
+    const drift = position - estimate;
+
+    if (position < previousPosition - 1_200) {
+      // Seek mundur yang nyata.
+      anchorPosition = position;
+      anchorTime = now;
+    } else if (drift > 900) {
+      // Sumber lebih maju (seek maju atau jam lokal tertinggal): ikuti.
+      anchorPosition = position;
+      anchorTime = now;
+    } else if (drift < -900) {
+      // Sumber tertinggal, bukan seek: koreksi pelan supaya baris tidak
+      // melompat mundur.
+      anchorPosition = estimate + drift * 0.15;
+      anchorTime = now;
+    } else {
+      anchorPosition = estimate + drift * 0.25;
+      anchorTime = now;
+    }
   }
 
   setPlayIcon(playing);
@@ -307,8 +328,11 @@ function onPlayback(snapshot: PlaybackSnapshot) {
 
   lastActiveAt = performance.now();
 
-  const next = snapshot.track;
-  const nextKey = trackKeyOf(next);
+  if (!next) {
+    showIdle();
+    return;
+  }
+
   if (nextKey === trackKey) {
     track = next;
     return;
@@ -462,7 +486,7 @@ function wireCompactMode() {
 
 /* ---------------- render loop ---------------- */
 
-function loop() {
+function tick() {
   if (demoMode) {
     const pos = performance.now() - demoStart;
     if (pos > 24_000) {
@@ -501,8 +525,19 @@ function loop() {
       }
     }
   }
+}
 
+function loop() {
+  tick();
   requestAnimationFrame(loop);
+}
+
+function startRenderLoop() {
+  requestAnimationFrame(loop);
+  // WebView2 bisa berhenti memanggil requestAnimationFrame saat jendela tidak
+  // fokus/tertutup. Timer ini menjaga baris lirik tetap berganti dan sekaligus
+  // memicu repaint ketika teks berubah.
+  window.setInterval(tick, 200);
 }
 
 /* ---------------- kontrol ---------------- */
@@ -609,5 +644,5 @@ window.addEventListener("DOMContentLoaded", async () => {
     startDemo();
   }
 
-  requestAnimationFrame(loop);
+  startRenderLoop();
 });
