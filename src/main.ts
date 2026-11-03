@@ -636,8 +636,14 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   try {
     await Promise.all([
-      listen<PlaybackSnapshot>("playback:update", (event) => onPlayback(event.payload)),
-      listen<LyricsState>("lyrics:update", (event) => onLyrics(event.payload)),
+      listen<PlaybackSnapshot>("playback:update", (event) => {
+        onPlayback(event.payload);
+        tick();
+      }),
+      listen<LyricsState>("lyrics:update", (event) => {
+        onLyrics(event.payload);
+        tick();
+      }),
     ]);
   } catch {
     // Dibuka di browser biasa, bukan Tauri → pakai demo
