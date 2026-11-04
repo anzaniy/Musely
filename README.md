@@ -1,49 +1,49 @@
 # Musely
 
-Widget desktop kecil untuk Windows yang menampilkan lirik lagu yang sedang diputar, selalu di atas jendela lain (always-on-top), sehingga tetap terlihat saat membuka tab/aplikasi lain.
+A small Windows desktop widget that shows the lyrics of the song currently playing, always on top of other windows, so it stays visible while you open other tabs/apps.
 
-Status: **berfungsi** — widget sudah membaca lagu dari GSMTC (tanpa login Spotify), mengambil lirik tersinkron dari LRCLIB, dan punya bar kontrol (prev / play-pause / next / offset / keluar).
+Status: **working** — the widget reads the current song from GSMTC (no Spotify login), fetches synced lyrics from LRCLIB, and has a control bar (prev / play-pause / next / offset / quit).
 
 ---
 
-## Kontrol & navigasi
+## Controls & navigation
 
-| Aksi | Cara |
+| Action | How |
 |---|---|
-| Pindah posisi widget | Drag pada area judul/cover |
-| Lagu sebelumnya / berikutnya | Tombol `⏮` / `⏭` |
-| Play / pause | Tombol tengah (ikon berubah sesuai status) |
-| Menyesuaikan waktu lirik | `−` (lirik lebih lambat 100 ms), `+` (lebih cepat 100 ms) |
-| Reset offset | Klik angka offset (`0 ms`) |
-| Keluar total | Tombol `✕` di kanan bawah |
-| Sembunyikan / tampilkan | Klik ikon tray, atau menu tray → *Tampilkan / Sembunyikan* |
-| Keluar lewat tray | Menu tray → *Keluar* |
+| Move the widget | Drag the title/cover area |
+| Previous / next song | `⏮` / `⏭` buttons |
+| Play / pause | Middle button (icon follows the current state) |
+| Adjust lyric timing | `−` (lyrics 100 ms later), `+` (100 ms earlier) |
+| Reset offset | Click the offset value (`0 ms`) |
+| Quit completely | `✕` button at the bottom right |
+| Hide / show | Click the tray icon, or tray menu → *Show / Hide* |
+| Quit from tray | Tray menu → *Quit* |
 
-Offset disimpan di `localStorage` sehingga tetap berlaku setelah aplikasi ditutup.
+The offset is stored in `localStorage`, so it persists after the app is closed.
 
-## Mode ringkas (hover)
+## Compact mode (hover)
 
-Saat kursor tidak berada di atas widget, kartu/header/tombol disembunyikan dan hanya teks lirik dengan outline gelap yang tampil tetap terbaca di atas aplikasi lain. Arahkan kursor ke widget untuk memunculkan tampilan penuh lagi (kartu, kontrol, progress).
+When the cursor is not over the widget, the card/header/buttons are hidden and only the lyric text with a dark outline stays visible — still readable over other apps. Move the cursor onto the widget to bring the full view back (card, controls, progress).
 
-- Mode ringkas hanya aktif bila ada lirik yang sedang ditampilkan. Saat idle, iklan, instrumental, atau "tidak tersedia", widget tetap tampil penuh.
-- Tidak ada perubahan ukuran window, supaya tidak berkedip. Catatan: area transparan tetap menangkap klik (belum click-through) karena hover membutuhkan event mouse.
+- Compact mode only activates while lyrics are being shown. When idle, during ads, instrumentals, or "not available", the widget stays fully expanded.
+- The window size never changes, so nothing flickers. Note: the transparent area still catches clicks (not click-through yet) because hover needs mouse events.
 
-> Di Windows 11 ikon tray baru sering disembunyikan di panel `^`. Buka panel itu, lalu drag ikon *Musely* ke taskbar agar selalu terlihat.
+> On Windows 11, new tray icons are often hidden in the `^` panel. Open that panel and drag the *Musely* icon onto the taskbar to keep it visible.
 
-## Struktur folder
+## Folder structure
 
 ```text
 musely/
-├── README.md                     ← file ini
-├── .env.example                  ← template konfigurasi
+├── README.md                     ← this file
+├── .env.example                  ← configuration template
 ├── docs/
-│   ├── 01-arsitektur.md          ← alur data & pembagian modul
-│   ├── 02-spotify-api.md         ← auth PKCE, endpoint, batasan
-│   ├── 03-lrclib-api.md          ← endpoint lirik, format, rate limit
-│   ├── 04-tauri-widget.md        ← config window overlay + plugin
-│   ├── 05-data-model.md          ← tipe data & algoritma sinkronisasi
-│   ├── 06-legal-dan-risiko.md    ← kebijakan Spotify & hak cipta lirik
-│   └── 07-checklist-build.md     ← urutan pengerjaan + prasyarat
+│   ├── 01-arsitektur.md          ← data flow & module breakdown
+│   ├── 02-spotify-api.md         ← PKCE auth, endpoints, limits
+│   ├── 03-lrclib-api.md          ← lyrics endpoints, format, rate limits
+│   ├── 04-tauri-widget.md        ← overlay window config + plugins
+│   ├── 05-data-model.md          ← data types & sync algorithm
+│   ├── 06-legal-dan-risiko.md    ← Spotify policy & lyric copyright
+│   └── 07-checklist-build.md     ← build order + prerequisites
 └── samples/
     ├── spotify-currently-playing.sample.json
     └── lrclib-creep.sample.json
@@ -51,7 +51,7 @@ musely/
 
 ---
 
-## Prasyarat
+## Prerequisites
 
 ```text
 Node.js        v24.13.1   OK
@@ -59,28 +59,28 @@ npm            11.8.0     OK
 Rust           1.99.1     OK
 Cargo          1.99.1     OK
 MSVC Build Tools 2022     OK
-WebView2 Runtime          OK (bawaan Windows 11)
+WebView2 Runtime          OK (built into Windows 11)
 ```
 ---
 
 ## Run
 
-```via powershell
+```powershell
 npm install
-npm run tauri dev      # mode pengembangan
-npm run tauri build    # installer NSIS di src-tauri/target/release/bundle/
+npm run tauri dev      # development mode
+npm run tauri build    # NSIS installer in src-tauri/target/release/bundle/
 ```
 
-Catatan: command `cargo` harus ada di `PATH` (`$env:USERPROFILE\.cargo\bin`).
+Note: the `cargo` command must be on `PATH` (`$env:USERPROFILE\.cargo\bin`).
 
 ---
 
-## Cara kerja singkat
+## How it works
 
-1. Thread Rust melakukan polling GSMTC tiap 500 ms → `playback:update`.
-2. Saat judul/artis/durasi berubah, lirik diambil dari LRCLIB → `lyrics:update`.
-3. Frontend menginterpolasi posisi antar-poll, mengoreksi drift secara bertahap, lalu memilih baris aktif dengan binary search.
-4. Hasil lirik di-cache di memori agar memutar ulang lagu yang sama tidak memuat ulang.
-5. Idle baru diumumkan setelah 3 kegagalan baca berturut-turut (±1,5 dtk) untuk mencegah kedip.
+1. A Rust thread polls GSMTC every 500 ms → `playback:update`.
+2. When title/artist/duration changes, lyrics are fetched from LRCLIB → `lyrics:update`.
+3. The frontend interpolates position between polls, corrects drift gradually, then picks the active line with binary search.
+4. Lyrics results are cached in memory so replaying the same song does not load them again.
+5. Idle is only announced after 3 consecutive read failures (~1.5 s) to prevent flicker.
 
 ---
